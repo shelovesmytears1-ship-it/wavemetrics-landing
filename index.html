@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wavemetrics — Предиктивная аналитика для артистов</title>
+  <meta name="description" content="Wavemetrics агрегирует данные Spotify, Apple Music и YouTube. Предсказывает виральность трека на 30 дней до того, как кривая роста стала очевидной.">
+
+  <meta property="og:title" content="Wavemetrics — Предиктивная аналитика для артистов">
+  <meta property="og:description" content="Алгоритмы прогноза виральности на 30 дней. Concept B2B-продукт для артистов, менеджеров и лейблов.">
+  <meta property="og:type" content="website">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg:       '#FAFAF8',
+            bg2:      '#F3F3EF',
+            surface:  '#FFFFFF',
+            card:     '#FFFFFF',
+            bd:       '#E4E4E0',
+            bd2:      '#D4D4CD',
+            fg:       '#0E0E0F',
+            muted:    '#6F6F6A',
+            accent:   '#5B4FFF',
+            accentd:  '#4538EB',
+            signal:   '#16A34A',
+            warn:     '#D97706',
+          },
+          fontFamily: {
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+            sans:    ['Inter', 'sans-serif'],
+            mono:    ['JetBrains Mono', 'monospace'],
+          },
+          letterSpacing: {
+            h1: '-0.04em',
+            h2: '-0.025em',
+            caps: '0.12em',
+          },
+          maxWidth: {
+            wrap: '1200px',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #FAFAF8;
+      color: #0E0E0F;
+      font-size: 17px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    @media (max-width: 768px) {
+      body { font-size: 16px; }
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* Reveal animation — IntersectionObserver target */
+    .rv {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .rv.in {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* Hero entrance stagger */
+    @keyframes up {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: none; }
+    }
+    .u  { opacity: 0; animation: up 0.6s ease forwards; }
+    .u1 { animation-delay: 0ms; }
+    .u2 { animation-delay: 120ms; }
+    .u3 { animation-delay: 240ms; }
+    .u4 { animation-delay: 360ms; }
+    .u5 { animation-delay: 480ms; }
+
+    /* Marquee */
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+    .marquee-track {
+      animation: marquee 32s linear infinite;
+    }
+
+    /* CTA */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background 180ms ease, border-color 180ms ease;
+      white-space: nowrap;
+    }
+    .btn-fill {
+      background: #5B4FFF;
+      color: #FFFFFF;
+    }
+    .btn-fill:hover {
+      background: #4538EB;
+    }
+    .btn-line {
+      background: transparent;
+      color: #0E0E0F;
+      border: 1px solid #D4D4CD;
+    }
+    .btn-line:hover {
+      border-color: #6F6F6A;
+      background: #F3F3EF;
+    }
+
+    /* Dot pulse for status */
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .pulse-dot {
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    /* Mini chart bars (decorative) */
+    .bar { width: 8px; background: #5B4FFF; border-radius: 2px; }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .rv, .u, .marquee-track, .pulse-dot {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-bg text-fg">
+
+  <!-- ═══════════ NAV ═══════════ -->
+  <header class="sticky top-0 z-50 bg-bg/85 backdrop-blur-sm border-b border-bd">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-2.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-accent"></span>
+        <span class="font-display font-extrabold text-xl tracking-h1 text-fg">Wavemetrics</span>
+        <span class="ml-2 font-mono text-[10px] uppercase tracking-caps text-muted border border-bd2 rounded-sm px-1.5 py-0.5">concept · 2026</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-9 text-sm text-muted">
+        <a href="#platform" class="hover:text-fg transition-colors">Платформа</a>
+        <a href="#how-it-works" class="hover:text-fg transition-colors">Как работает</a>
+        <a href="#pricing" class="hover:text-fg transition-colors">Тарифы</a>
+        <a href="#faq" class="hover:text-fg transition-colors">FAQ</a>
+      </nav>
+      <div class="flex items-center gap-3">
+        <a href="#trial" class="btn btn-fill">Открыть демо</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════ HERO — asymmetric 5/7 ═══════════ -->
+  <section class="border-b border-bd">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-20 lg:py-28">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+
+        <!-- Left: copy (5/12) -->
+        <div class="lg:col-span-5">
+          <div class="u u1 inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-caps text-muted border border-bd2 rounded-full px-3 py-1.5 mb-8">
+            <span class="w-1.5 h-1.5 rounded-full bg-signal pulse-dot"></span>
+            Concept demo · доступен ниже
+          </div>
+          <h1 class="u u2 font-display font-extrabold text-5xl sm:text-6xl lg:text-7xl tracking-h1 text-fg leading-[1.02] mb-6">
+            Алгоритмы.<br>Не&nbsp;интуиция.
+          </h1>
+          <p class="u u3 text-lg text-muted max-w-md mb-8 leading-relaxed">
+            Wavemetrics агрегирует данные Spotify, Apple Music и YouTube. Прогнозирует виральность трека на 30 дней до того, как кривая роста стала очевидной.
+          </p>
+          <div class="u u4 flex flex-col sm:flex-row gap-3 mb-10">
+            <a href="#trial" class="btn btn-fill">Открыть демо-дашборд</a>
+            <a href="#how-it-works" class="btn btn-line">Как работает прогноз →</a>
+          </div>
+          <div class="u u5 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-mono text-muted">
+            <span>Spotify API</span>
+            <span class="text-bd2">/</span>
+            <span>Apple Music for Artists</span>
+            <span class="text-bd2">/</span>
+            <span>YouTube Studio</span>
+          </div>
+        </div>
+
+        <!-- Right: UI mockup (cols 7-12 with col 6 as breathing gutter) -->
+        <div class="lg:col-start-7 lg:col-span-6 u u3">
+          <div class="bg-card border border-bd rounded-xl shadow-[0_24px_60px_-24px_rgba(14,14,15,0.15)] overflow-hidden">
+            <!-- App bar -->
+            <div class="flex items-center justify-between px-5 py-3 border-b border-bd bg-bg2">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#E5E7EB]"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[#E5E7EB]"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[#E5E7EB]"></span>
+              </div>
+              <span class="font-mono text-[11px] text-muted">wavemetrics.app / overview</span>
+              <div class="w-12"></div>
+            </div>
+
+            <!-- Tabs row -->
+            <div class="flex items-center gap-6 px-6 pt-5 border-b border-bd text-sm">
+              <span class="pb-3 border-b-2 border-accent text-fg font-medium">Overview</span>
+              <span class="pb-3 text-muted">Streams</span>
+              <span class="pb-3 text-muted">Audience</span>
+              <span class="pb-3 text-muted">Forecast</span>
+              <span class="pb-3 text-muted hidden sm:inline">Playlists</span>
+            </div>
+
+            <div class="p-6">
+              <!-- KPI cards -->
+              <div class="grid grid-cols-3 gap-3 mb-5">
+                <div class="border border-bd rounded-lg p-3">
+                  <div class="text-[10px] uppercase tracking-caps text-muted font-mono mb-1">Monthly listeners</div>
+                  <div class="font-mono font-semibold text-fg text-xl">142,8K</div>
+                  <div class="text-[11px] text-signal font-mono mt-1">+8,4% / 7d</div>
+                </div>
+                <div class="border border-bd rounded-lg p-3">
+                  <div class="text-[10px] uppercase tracking-caps text-muted font-mono mb-1">Saves rate</div>
+                  <div class="font-mono font-semibold text-fg text-xl">12,4%</div>
+                  <div class="text-[11px] text-signal font-mono mt-1">+1,2pp / 7d</div>
+                </div>
+                <div class="border border-bd rounded-lg p-3 bg-accent/[0.04]">
+                  <div class="text-[10px] uppercase tracking-caps text-accent font-mono mb-1">30d forecast</div>
+                  <div class="font-mono font-semibold text-fg text-xl">+24,1K</div>
+                  <div class="text-[11px] text-accent font-mono mt-1">confidence 0.78</div>
+                </div>
+              </div>
+
+              <!-- Chart area -->
+              <div class="border border-bd rounded-lg p-4">
+                <div class="flex items-center justify-between mb-4">
+                  <span class="text-sm font-medium text-fg">Stream velocity · 30 days</span>
+                  <span class="font-mono text-[11px] text-muted">— actual &nbsp;— forecast</span>
+                </div>
+                <svg viewBox="0 0 320 100" class="w-full h-24" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#5B4FFF" stop-opacity="0.18" />
+                      <stop offset="100%" stop-color="#5B4FFF" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <!-- Actual line -->
+                  <path d="M0,70 L30,65 L60,55 L90,50 L120,45 L150,40 L170,35" stroke="#0E0E0F" stroke-width="1.5" fill="none" />
+                  <!-- Forecast area -->
+                  <path d="M170,35 L200,30 L230,22 L260,18 L290,15 L320,10 L320,100 L170,100 Z" fill="url(#grad)" />
+                  <!-- Forecast line dashed -->
+                  <path d="M170,35 L200,30 L230,22 L260,18 L290,15 L320,10" stroke="#5B4FFF" stroke-width="1.5" stroke-dasharray="3 3" fill="none" />
+                  <!-- Divider marker -->
+                  <line x1="170" y1="0" x2="170" y2="100" stroke="#D4D4CD" stroke-width="1" stroke-dasharray="2 3" />
+                </svg>
+              </div>
+
+              <!-- Bottom mini row -->
+              <div class="grid grid-cols-2 gap-3 mt-3">
+                <div class="border border-bd rounded-lg p-3">
+                  <div class="text-[10px] uppercase tracking-caps text-muted font-mono mb-2">Top playlists this week</div>
+                  <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs"><span class="text-fg">Lo-fi Beats</span><span class="font-mono text-muted">+4,2K</span></div>
+                    <div class="flex justify-between text-xs"><span class="text-fg">Indie Pop</span><span class="font-mono text-muted">+2,1K</span></div>
+                    <div class="flex justify-between text-xs"><span class="text-fg">Discover Weekly</span><span class="font-mono text-muted">+1,8K</span></div>
+                  </div>
+                </div>
+                <div class="border border-bd rounded-lg p-3">
+                  <div class="text-[10px] uppercase tracking-caps text-muted font-mono mb-2">Cohort retention · 28d</div>
+                  <div class="flex items-end gap-1 h-12">
+                    <div class="bar" style="height: 90%"></div>
+                    <div class="bar" style="height: 76%"></div>
+                    <div class="bar" style="height: 60%"></div>
+                    <div class="bar" style="height: 48%"></div>
+                    <div class="bar" style="height: 41%"></div>
+                    <div class="bar" style="height: 35%"></div>
+                    <div class="bar" style="height: 32%"></div>
+                    <div class="bar" style="height: 30%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="mt-3 font-mono text-[11px] text-muted text-center lg:text-right">Mockup данные · concept demo</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ MARQUEE — facts, not vanity ═══════════ -->
+  <section class="overflow-hidden border-b border-bd bg-bg2 py-5">
+    <div class="marquee-track flex gap-12 whitespace-nowrap font-mono text-[12px] uppercase tracking-caps text-muted">
+      <span>Concept dashboard · 2026</span>
+      <span>·</span>
+      <span>Spotify · Apple Music · YouTube</span>
+      <span>·</span>
+      <span>30-day virality forecast</span>
+      <span>·</span>
+      <span>Cohort retention analysis</span>
+      <span>·</span>
+      <span>Industry benchmark: ML targeting reduces CPA 20–40%</span>
+      <span>·</span>
+      <span>Read-only API access</span>
+      <span>·</span>
+      <span>Concept dashboard · 2026</span>
+      <span>·</span>
+      <span>Spotify · Apple Music · YouTube</span>
+      <span>·</span>
+      <span>30-day virality forecast</span>
+      <span>·</span>
+      <span>Cohort retention analysis</span>
+      <span>·</span>
+      <span>Industry benchmark: ML targeting reduces CPA 20–40%</span>
+      <span>·</span>
+      <span>Read-only API access</span>
+    </div>
+  </section>
+
+  <!-- ═══════════ PLATFORM — alternating sections ═══════════ -->
+  <section id="platform" class="border-b border-bd">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-24 lg:py-32">
+
+      <div class="rv mb-20 max-w-2xl">
+        <span class="font-mono text-[11px] uppercase tracking-caps text-accent mb-3 inline-block">Платформа</span>
+        <h2 class="font-display font-extrabold text-4xl lg:text-5xl tracking-h2 mb-4">Одна платформа.<br>Вся ваша аудитория.</h2>
+        <p class="text-muted">Хватит переключать вкладки. Мы агрегируем данные со всех площадок, чтобы вы видели полную картину и принимали решения, основанные на цифрах.</p>
+      </div>
+
+      <!-- Feature 1: text left, visual right -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center mb-24 rv">
+        <div class="lg:col-span-5">
+          <div class="font-mono text-[11px] uppercase tracking-caps text-muted mb-2">01 · Интеграция 360°</div>
+          <h3 class="font-display font-bold text-2xl lg:text-3xl tracking-h2 mb-4">Прямое подключение к API. Без посредников.</h3>
+          <p class="text-muted leading-relaxed">Spotify for Artists, Apple Music, YouTube Studio — все три синхронизируются в одном дашборде. Read-only режим: мы не имеем доступа к роялти, выплатам или управлению профилем.</p>
+        </div>
+        <div class="lg:col-span-7">
+          <div class="bg-card border border-bd rounded-xl p-6">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between p-4 border border-bd rounded-lg">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-[#1DB954]/15 flex items-center justify-center"><span class="w-2 h-2 rounded-full bg-[#1DB954]"></span></div>
+                  <div>
+                    <div class="font-medium text-fg">Spotify</div>
+                    <div class="text-xs text-muted">Streams · saves · playlist adds</div>
+                  </div>
+                </div>
+                <span class="font-mono text-[11px] text-signal">connected</span>
+              </div>
+              <div class="flex items-center justify-between p-4 border border-bd rounded-lg">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-[#FA243C]/15 flex items-center justify-center"><span class="w-2 h-2 rounded-full bg-[#FA243C]"></span></div>
+                  <div>
+                    <div class="font-medium text-fg">Apple Music</div>
+                    <div class="text-xs text-muted">Plays · Shazams · radio adds</div>
+                  </div>
+                </div>
+                <span class="font-mono text-[11px] text-signal">connected</span>
+              </div>
+              <div class="flex items-center justify-between p-4 border border-bd rounded-lg">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-[#FF0000]/15 flex items-center justify-center"><span class="w-2 h-2 rounded-full bg-[#FF0000]"></span></div>
+                  <div>
+                    <div class="font-medium text-fg">YouTube</div>
+                    <div class="text-xs text-muted">Views · retention · subscribers</div>
+                  </div>
+                </div>
+                <span class="font-mono text-[11px] text-signal">connected</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 2: visual left, text right -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center mb-24 rv">
+        <div class="lg:col-span-7 lg:order-1 order-2">
+          <div class="bg-card border border-bd rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <div class="font-mono text-[11px] uppercase tracking-caps text-muted mb-1">Forecast · «Night Train»</div>
+                <div class="font-medium text-fg">Прогноз на 30 дней</div>
+              </div>
+              <span class="font-mono text-[11px] text-accent border border-accent/30 bg-accent/[0.06] rounded px-2 py-1">confidence 0.82</span>
+            </div>
+            <svg viewBox="0 0 320 120" class="w-full h-32" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="grad2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#5B4FFF" stop-opacity="0.16" />
+                  <stop offset="100%" stop-color="#5B4FFF" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <path d="M0,90 L40,82 L80,70 L120,62 L160,50" stroke="#0E0E0F" stroke-width="1.5" fill="none" />
+              <path d="M160,50 L200,40 L240,28 L280,18 L320,10 L320,120 L160,120 Z" fill="url(#grad2)" />
+              <path d="M160,50 L200,40 L240,28 L280,18 L320,10" stroke="#5B4FFF" stroke-width="1.5" stroke-dasharray="4 3" fill="none" />
+              <line x1="160" y1="0" x2="160" y2="120" stroke="#D4D4CD" stroke-width="1" stroke-dasharray="2 3" />
+              <text x="160" y="15" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#6F6F6A">сегодня</text>
+            </svg>
+            <div class="grid grid-cols-3 gap-3 mt-4 text-xs">
+              <div class="border border-bd rounded-lg p-3">
+                <div class="text-muted font-mono text-[10px] mb-1">+7d</div>
+                <div class="font-mono text-fg">+3,2K</div>
+              </div>
+              <div class="border border-bd rounded-lg p-3">
+                <div class="text-muted font-mono text-[10px] mb-1">+14d</div>
+                <div class="font-mono text-fg">+9,1K</div>
+              </div>
+              <div class="border border-bd rounded-lg p-3 bg-accent/[0.04]">
+                <div class="text-accent font-mono text-[10px] mb-1">+30d</div>
+                <div class="font-mono text-fg">+24,8K</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="lg:col-span-5 lg:order-2 order-1">
+          <div class="font-mono text-[11px] uppercase tracking-caps text-muted mb-2">02 · ML Прогноз</div>
+          <h3 class="font-display font-bold text-2xl lg:text-3xl tracking-h2 mb-4">Виральность за 30&nbsp;дней до того, как она очевидна.</h3>
+          <p class="text-muted leading-relaxed">Модель анализирует скорость прироста аудитории, попадание в алгоритмические плейлисты, ретеншн новых слушателей и предсказывает кривую следующего месяца с указанием доверительного интервала.</p>
+        </div>
+      </div>
+
+      <!-- Feature 3: text left, visual right -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center rv">
+        <div class="lg:col-span-5">
+          <div class="font-mono text-[11px] uppercase tracking-caps text-muted mb-2">03 · Когортный анализ</div>
+          <h3 class="font-display font-bold text-2xl lg:text-3xl tracking-h2 mb-4">Кто остаётся слушать через&nbsp;месяц после релиза.</h3>
+          <p class="text-muted leading-relaxed">Когортный график удержания показывает, какой процент новых слушателей возвращается на 1, 7, 14 и 28 день. Это разница между «релиз выстрелил» и «релиз построил аудиторию».</p>
+        </div>
+        <div class="lg:col-span-7">
+          <div class="bg-card border border-bd rounded-xl p-6">
+            <div class="flex items-center justify-between mb-5">
+              <span class="font-medium text-fg">Retention by release cohort</span>
+              <div class="flex gap-2 text-[11px] font-mono">
+                <span class="px-2 py-1 border border-bd rounded text-muted">Night Train</span>
+                <span class="px-2 py-1 border border-accent/30 bg-accent/[0.06] rounded text-accent">Drift</span>
+                <span class="px-2 py-1 border border-bd rounded text-muted">Static</span>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="font-mono text-muted">Day 1</span>
+                  <span class="font-mono text-fg">100%</span>
+                </div>
+                <div class="h-2 bg-bg2 rounded-full overflow-hidden">
+                  <div class="h-full bg-accent" style="width: 100%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="font-mono text-muted">Day 7</span>
+                  <span class="font-mono text-fg">68%</span>
+                </div>
+                <div class="h-2 bg-bg2 rounded-full overflow-hidden">
+                  <div class="h-full bg-accent" style="width: 68%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="font-mono text-muted">Day 14</span>
+                  <span class="font-mono text-fg">52%</span>
+                </div>
+                <div class="h-2 bg-bg2 rounded-full overflow-hidden">
+                  <div class="h-full bg-accent" style="width: 52%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="font-mono text-muted">Day 28</span>
+                  <span class="font-mono text-fg">41%</span>
+                </div>
+                <div class="h-2 bg-bg2 rounded-full overflow-hidden">
+                  <div class="h-full bg-accent" style="width: 41%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ ROI calculator + ML timeline ═══════════ -->
+  <section id="how-it-works" class="border-b border-bd bg-bg2">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-24 lg:py-32">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+
+        <div class="rv">
+          <span class="font-mono text-[11px] uppercase tracking-caps text-accent mb-3 inline-block">Промо-бюджет</span>
+          <h2 class="font-display font-extrabold text-4xl tracking-h2 mb-5">Сколько бюджета уходит мимо целевой аудитории?</h2>
+          <p class="text-muted mb-8 leading-relaxed">ML-таргетинг направляет рекламу только на аудиторию с высоким потенциалом удержания. По отраслевым данным экономия CPA — 20–40% при сопоставимом объёме показов.</p>
+          <div class="space-y-6">
+            <div>
+              <div class="flex justify-between text-sm mb-2">
+                <span class="text-muted">Ежемесячный бюджет на таргет</span>
+                <span class="font-mono font-semibold text-fg" id="budget-display">$500</span>
+              </div>
+              <input type="range" id="budget-slider" min="100" max="5000" step="100" value="500" class="w-full h-1 bg-bd rounded-full appearance-none cursor-pointer accent-accent">
+              <div class="flex justify-between text-[11px] font-mono text-muted mt-1.5">
+                <span>$100</span><span>$5,000</span>
+              </div>
+            </div>
+            <div class="p-5 rounded-lg border border-accent/30 bg-accent/[0.05] flex items-center justify-between">
+              <div>
+                <div class="text-[11px] uppercase tracking-caps text-accent font-mono mb-1">Прогноз экономии (benchmark)</div>
+                <div class="font-display font-extrabold text-3xl text-fg" id="savings-display">$100–$200<span class="text-base text-muted font-sans font-normal">/мес</span></div>
+              </div>
+              <svg class="w-6 h-6 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            </div>
+            <p class="text-[11px] font-mono text-muted leading-relaxed">Расчёт на основе индустриального бенчмарка ML-driven targeting: 20–40% сокращения CPA. Не гарантированный результат конкретного проекта.</p>
+          </div>
+        </div>
+
+        <div class="rv">
+          <span class="font-mono text-[11px] uppercase tracking-caps text-accent mb-3 inline-block">Как работает прогноз</span>
+          <h2 class="font-display font-extrabold text-4xl tracking-h2 mb-8">3 шага от сырых данных до прогноза.</h2>
+          <div class="space-y-4">
+            <div class="bg-card border border-bd rounded-xl p-6 flex gap-5">
+              <div class="flex-shrink-0 w-10 h-10 rounded-full bg-accent text-white font-display font-bold flex items-center justify-center">1</div>
+              <div>
+                <h4 class="font-display font-bold text-lg text-fg mb-1.5">Сбор данных</h4>
+                <p class="text-sm text-muted leading-relaxed">Подключаем Spotify API, Apple Music, YouTube. Синхронизация раз в час, исторические данные за 90 дней.</p>
+              </div>
+            </div>
+            <div class="bg-card border border-bd rounded-xl p-6 flex gap-5">
+              <div class="flex-shrink-0 w-10 h-10 rounded-full bg-accent text-white font-display font-bold flex items-center justify-center">2</div>
+              <div>
+                <h4 class="font-display font-bold text-lg text-fg mb-1.5">Когортный анализ</h4>
+                <p class="text-sm text-muted leading-relaxed">Сегментируем новых слушателей по дню первого прослушивания. Считаем retention rate, выявляем паттерны удержания по жанру, источнику трафика и плейлисту.</p>
+              </div>
+            </div>
+            <div class="bg-card border border-bd rounded-xl p-6 flex gap-5">
+              <div class="flex-shrink-0 w-10 h-10 rounded-full bg-accent text-white font-display font-bold flex items-center justify-center">3</div>
+              <div>
+                <h4 class="font-display font-bold text-lg text-fg mb-1.5">Прогноз виральности</h4>
+                <p class="text-sm text-muted leading-relaxed">Модель оценивает скорость прироста, попадание в алгоритмические плейлисты и returns. Выдаёт прогноз на 7 / 14 / 30 дней с confidence-интервалом.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ TARGET PERSONAS (replaces use-cases 3-card) ═══════════ -->
+  <section class="border-b border-bd">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-24 lg:py-32">
+
+      <div class="rv mb-16 max-w-2xl">
+        <span class="font-mono text-[11px] uppercase tracking-caps text-accent mb-3 inline-block">Для кого</span>
+        <h2 class="font-display font-extrabold text-4xl tracking-h2 mb-4">Три профиля. Одна платформа.</h2>
+        <p class="text-muted">Целевые персоны, на которые Wavemetrics проектировался. Реальных подписчиков на момент concept-этапа нет.</p>
+      </div>
+
+      <!-- 2 big + 1 wide layout (asymmetric, не 3 одинаковых) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 rv">
+        <div class="lg:col-span-7 bg-card border border-bd rounded-xl p-8">
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <span class="font-mono text-[11px] uppercase tracking-caps text-muted">Персона 01</span>
+              <h3 class="font-display font-bold text-2xl mt-1">Indie-артист</h3>
+            </div>
+            <div class="font-mono text-[11px] text-muted border border-bd rounded px-2 py-1">50K–200K MoLs</div>
+          </div>
+          <p class="text-muted leading-relaxed mb-5">22–30 лет, выпускает 4–8 треков в год, продвигает их самостоятельно через рекламу в Instagram и TikTok. Боль: «реклама работает или нет?» — узнаётся через 2 недели по фактическим стримам, когда бюджет уже потрачен.</p>
+          <div class="border-t border-bd pt-4">
+            <span class="font-mono text-[10px] uppercase tracking-caps text-muted block mb-2">Использует</span>
+            <span class="text-sm text-fg">Stream velocity · Playlist tracking · Cohort retention</span>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5 bg-card border border-bd rounded-xl p-8">
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <span class="font-mono text-[11px] uppercase tracking-caps text-muted">Персона 02</span>
+              <h3 class="font-display font-bold text-2xl mt-1">Менеджер</h3>
+            </div>
+            <div class="font-mono text-[11px] text-muted border border-bd rounded px-2 py-1">3–15 артистов</div>
+          </div>
+          <p class="text-muted leading-relaxed mb-5">25–40 лет, портфель из нескольких артистов. Боль: отчёты для каждого клиента собираются вручную из 5 вкладок.</p>
+          <div class="border-t border-bd pt-4">
+            <span class="font-mono text-[10px] uppercase tracking-caps text-muted block mb-2">Использует</span>
+            <span class="text-sm text-fg">PDF-отчёты · Multi-artist dashboard · Budget tracker</span>
+          </div>
+        </div>
+
+        <div class="lg:col-span-12 bg-card border border-bd rounded-xl p-8">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            <div class="lg:col-span-8">
+              <div class="flex items-start justify-between mb-3 lg:mb-5">
+                <div>
+                  <span class="font-mono text-[11px] uppercase tracking-caps text-muted">Персона 03</span>
+                  <h3 class="font-display font-bold text-2xl mt-1">A&R лейбла</h3>
+                </div>
+                <div class="font-mono text-[11px] text-muted border border-bd rounded px-2 py-1 ml-4 hidden sm:block">independent / mid-tier</div>
+              </div>
+              <p class="text-muted leading-relaxed">30–50 лет, ищет новых артистов до того, как они выходят на мейнстрим. Боль: Spotify For Artists не даёт сравнивать треки артистов вне своего лейбла, открытые чарты обновляются с задержкой.</p>
+            </div>
+            <div class="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-bd pt-4 lg:pt-0 lg:pl-6">
+              <span class="font-mono text-[10px] uppercase tracking-caps text-muted block mb-2">Использует</span>
+              <span class="text-sm text-fg">Cross-artist comparison · Virality alerts · Genre velocity charts</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ OLD WAY vs NEW WAY ═══════════ -->
+  <section class="border-b border-bd bg-bg2">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-24 lg:py-32">
+      <div class="rv mb-16 max-w-2xl">
+        <span class="font-mono text-[11px] uppercase tracking-caps text-accent mb-3 inline-block">Почему стандартной статистики недостаточно</span>
+        <h2 class="font-display font-extrabold text-4xl tracking-h2">Аналитика «в зеркало заднего вида» против предиктивной.</h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 rv">
+        <div class="bg-card border border-bd rounded-xl p-8">
+          <div class="font-mono text-[11px] uppercase tracking-caps text-warn mb-4">Старый способ</div>
+          <h3 class="font-display font-bold text-2xl tracking-h2 mb-5">Реактивная статистика</h3>
+          <ul class="space-y-4 text-muted">
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border border-warn/40 bg-warn/10"></span>
+              <span>Вы видите только то, что уже произошло. Решения принимаются вслед, не на упреждение.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border border-warn/40 bg-warn/10"></span>
+              <span>Непонятно, откуда пришёл трафик и задержится ли он. Retention 28 дней — недоступен.</span>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border border-warn/40 bg-warn/10"></span>
+              <span>5 разных вкладок: Spotify, Apple, YouTube, TikTok, аналитика рекламы — каждая со своим UI.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-card border-2 border-accent/30 rounded-xl p-8">
+          <div class="font-mono text-[11px] uppercase tracking-caps text-accent mb-4">Wavemetrics</div>
+          <h3 class="font-display font-bold text-2xl tracking-h2 mb-5">Предиктивные решения</h3>
+          <ul class="space-y-4 text-muted">
+            <li class="flex gap-3">
+              <svg class="flex-shrink-0 w-5 h-5 mt-0.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span>Прогноз виральности на 30 дней с указанием confidence-интервала.</span>
+            </li>
+            <li class="flex gap-3">
+              <svg class="flex-shrink-0 w-5 h-5 mt-0.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span>Когортный анализ удержания: знаешь, кто остаётся слушать через 28 дней.</span>
+            </li>
+            <li class="flex gap-3">
+              <svg class="flex-shrink-0 w-5 h-5 mt-0.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span>Единый дашборд со всех площадок. Один URL, одна сессия, один отчёт.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ TRUST / SECURITY ═══════════ -->
+  <section class="border-b border-bd">
+    <div class="max-w-3xl mx-auto px-6 lg:px-12 py-20 text-center rv">
+      <div class="inline-flex items-center gap-2 mb-6 font-mono text-[11px] uppercase tracking-caps text-muted border border-bd2 rounded-full px-3 py-1.5">
+        <svg class="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7z"/></svg>
+        Безопасность данных
+      </div>
+      <h2 class="font-display font-bold text-3xl tracking-h2 mb-4">Read-only API. Без доступа к роялти.</h2>
+      <p class="text-muted leading-relaxed">256-битное шифрование, серверы в ЕС, GDPR-compliant. Wavemetrics подключается к платформам только в режиме чтения — мы не имеем доступа к выплатам, не управляем профилем и не передаём данные третьим лицам.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ INTEGRATION LOGOS — sober ═══════════ -->
+  <section class="border-b border-bd bg-bg2">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-14 text-center rv">
+      <p class="font-mono text-[10px] uppercase tracking-caps text-muted mb-7">Интеграции с платформами</p>
+      <div class="flex flex-wrap justify-center items-center gap-x-12 gap-y-4 text-fg">
+        <span class="font-display font-bold text-xl opacity-50">Spotify</span>
+        <span class="text-bd2">·</span>
+        <span class="font-display font-bold text-xl opacity-50">Apple Music</span>
+        <span class="text-bd2">·</span>
+        <span class="font-display font-bold text-xl opacity-50">YouTube</span>
+        <span class="text-bd2">·</span>
+        <span class="font-display font-bold text-xl opacity-50">TikTok</span>
+        <span class="text-bd2">·</span>
+        <span class="font-display font-bold text-xl opacity-50">SoundCloud</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ PRICING ═══════════ -->
+  <section id="pricing" class="border-b border-bd">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-24 lg:py-32">
+      <div class="rv mb-16 max-w-2xl">
+        <span class="font-mono text-[11px] uppercase tracking-caps text-accent mb-3 inline-block">Тарифы</span>
+        <h2 class="font-display font-extrabold text-4xl tracking-h2 mb-4">Прозрачно. Без скрытых платежей.</h2>
+        <p class="text-muted">Месячная подписка, отменяется в любой момент.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 rv">
+        <div class="bg-card border border-bd rounded-xl p-8 flex flex-col">
+          <h3 class="font-display font-bold text-xl mb-1">Indie</h3>
+          <p class="text-sm text-muted mb-6">Для начинающих артистов</p>
+          <div class="font-display font-extrabold text-4xl tracking-h2 text-fg mb-6">$0<span class="text-base text-muted font-sans font-normal">/мес</span></div>
+          <ul class="space-y-3 mb-8 flex-1 text-sm text-muted">
+            <li class="flex gap-2"><span class="text-fg">·</span> Базовая статистика Spotify</li>
+            <li class="flex gap-2"><span class="text-fg">·</span> Обновление 1 раз в сутки</li>
+            <li class="flex gap-2"><span class="text-fg">·</span> 1 профиль артиста</li>
+          </ul>
+          <a href="#trial" class="btn btn-line w-full justify-center">Начать бесплатно</a>
+        </div>
+
+        <div class="bg-card border-2 border-accent rounded-xl p-8 flex flex-col relative">
+          <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-[10px] uppercase tracking-caps font-mono px-3 py-1 rounded">Популярный</span>
+          <h3 class="font-display font-bold text-xl mb-1">Pro</h3>
+          <p class="text-sm text-muted mb-6">Для растущих проектов</p>
+          <div class="font-display font-extrabold text-4xl tracking-h2 text-fg mb-6">$29<span class="text-base text-muted font-sans font-normal">/мес</span></div>
+          <ul class="space-y-3 mb-8 flex-1 text-sm">
+            <li class="flex gap-2 text-fg"><span>·</span> Все интеграции (Spotify · Apple · YouTube)</li>
+            <li class="flex gap-2 text-fg"><span>·</span> ML-прогноз и когортный анализ</li>
+            <li class="flex gap-2 text-fg"><span>·</span> Real-time дашборд</li>
+            <li class="flex gap-2 text-muted"><span>·</span> До 3 профилей</li>
+          </ul>
+          <a href="#trial" class="btn btn-fill w-full justify-center">Начать 14-дневный триал</a>
+        </div>
+
+        <div class="bg-card border border-bd rounded-xl p-8 flex flex-col">
+          <h3 class="font-display font-bold text-xl mb-1">Label</h3>
+          <p class="text-sm text-muted mb-6">Для менеджеров и лейблов</p>
+          <div class="font-display font-extrabold text-4xl tracking-h2 text-fg mb-6">$99<span class="text-base text-muted font-sans font-normal">/мес</span></div>
+          <ul class="space-y-3 mb-8 flex-1 text-sm text-muted">
+            <li class="flex gap-2"><span class="text-fg">·</span> Неограниченно профилей</li>
+            <li class="flex gap-2"><span class="text-fg">·</span> Экспорт отчётов (PDF / CSV)</li>
+            <li class="flex gap-2"><span class="text-fg">·</span> Приоритетная поддержка</li>
+            <li class="flex gap-2"><span class="text-fg">·</span> API-доступ</li>
+          </ul>
+          <a href="#trial" class="btn btn-line w-full justify-center">Запросить демо</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FAQ ═══════════ -->
+  <section id="faq" class="border-b border-bd bg-bg2">
+    <div class="max-w-3xl mx-auto px-6 lg:px-12 py-24">
+      <div class="rv mb-12">
+        <span class="font-mono text-[11px] uppercase tracking-caps text-accent mb-3 inline-block">FAQ</span>
+        <h2 class="font-display font-extrabold text-4xl tracking-h2">Частые вопросы</h2>
+      </div>
+      <div class="space-y-3 rv">
+        <details class="bg-card border border-bd rounded-xl p-6 group">
+          <summary class="font-display font-bold text-lg text-fg cursor-pointer list-none flex items-center justify-between">
+            <span>Нужна ли карта для пробного периода?</span>
+            <span class="text-2xl text-muted group-open:rotate-45 transition-transform">+</span>
+          </summary>
+          <p class="text-muted mt-4 text-sm leading-relaxed">Нет. 14 дней полного доступа к Pro-функциям без привязки кредитной карты. После окончания триала аккаунт автоматически переходит на тариф Indie.</p>
+        </details>
+        <details class="bg-card border border-bd rounded-xl p-6 group">
+          <summary class="font-display font-bold text-lg text-fg cursor-pointer list-none flex items-center justify-between">
+            <span>Как вы получаете данные?</span>
+            <span class="text-2xl text-muted group-open:rotate-45 transition-transform">+</span>
+          </summary>
+          <p class="text-muted mt-4 text-sm leading-relaxed">Через официальные API: Spotify for Artists, Apple Music for Artists, YouTube Data API. Read-only режим: мы видим статистику, но не имеем доступа к роялти или управлению профилем.</p>
+        </details>
+        <details class="bg-card border border-bd rounded-xl p-6 group">
+          <summary class="font-display font-bold text-lg text-fg cursor-pointer list-none flex items-center justify-between">
+            <span>Что с безопасностью и GDPR?</span>
+            <span class="text-2xl text-muted group-open:rotate-45 transition-transform">+</span>
+          </summary>
+          <p class="text-muted mt-4 text-sm leading-relaxed">Серверы в ЕС, 256-битное шифрование, GDPR-compliant. Данные не передаются третьим лицам. Удалить аккаунт и все связанные данные можно одной кнопкой в настройках.</p>
+        </details>
+        <details class="bg-card border border-bd rounded-xl p-6 group">
+          <summary class="font-display font-bold text-lg text-fg cursor-pointer list-none flex items-center justify-between">
+            <span>Насколько точен ML-прогноз?</span>
+            <span class="text-2xl text-muted group-open:rotate-45 transition-transform">+</span>
+          </summary>
+          <p class="text-muted mt-4 text-sm leading-relaxed">Каждый прогноз сопровождается confidence-интервалом (0–1). Высокий confidence (&gt;0.75) типично возникает для треков с устойчивым ростом 7+ дней; для свежих релизов первой недели прогноз даётся с осторожностью.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FINAL CTA ═══════════ -->
+  <section id="trial" class="border-b border-bd">
+    <div class="max-w-3xl mx-auto px-6 lg:px-12 py-24 lg:py-32 text-center rv">
+      <h2 class="font-display font-extrabold text-5xl lg:text-6xl tracking-h1 mb-5">Запустите concept-демо.</h2>
+      <p class="text-lg text-muted mb-10 max-w-xl mx-auto leading-relaxed">Подключите аккаунт Spotify for Artists в read-only режиме. Прогноз будет готов в течение 24 часов.</p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="#" class="btn btn-fill">Подключить Spotify</a>
+        <a href="#pricing" class="btn btn-line">Сравнить тарифы</a>
+      </div>
+      <p class="text-[11px] font-mono text-muted mt-8">14 дней доступа · карта не нужна · можно отменить в любой момент</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <footer class="bg-bg2">
+    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-12">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2 h-2 rounded-full bg-accent"></span>
+          <span class="font-display font-extrabold text-lg tracking-h1">Wavemetrics</span>
+        </div>
+        <div class="flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted">
+          <a href="#platform" class="hover:text-fg transition-colors">Платформа</a>
+          <a href="#how-it-works" class="hover:text-fg transition-colors">Как работает</a>
+          <a href="#pricing" class="hover:text-fg transition-colors">Тарифы</a>
+          <a href="#faq" class="hover:text-fg transition-colors">FAQ</a>
+          <a href="#" class="hover:text-fg transition-colors">GDPR</a>
+        </div>
+      </div>
+      <div class="pt-8 border-t border-bd flex flex-col md:flex-row justify-between gap-4 text-[11px] font-mono text-muted">
+        <p>© 2026 Wavemetrics. Concept project · portfolio piece. Все цифры в дашбордах — иллюстративные. Прогнозы экономии CPA основаны на индустриальных бенчмарках, не на гарантированных результатах конкретного проекта.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      /* Reveal on scroll — IntersectionObserver (P-TECH-01) */
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.classList.add('in');
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+      document.querySelectorAll('.rv').forEach(el => io.observe(el));
+
+      /* ROI slider */
+      const slider = document.getElementById('budget-slider');
+      const bd = document.getElementById('budget-display');
+      const sd = document.getElementById('savings-display');
+      if (slider && bd && sd) {
+        slider.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value, 10);
+          bd.textContent = `$${val.toLocaleString('en-US')}`;
+          const low  = Math.round(val * 0.20);
+          const high = Math.round(val * 0.40);
+          sd.innerHTML = `$${low.toLocaleString('en-US')}–$${high.toLocaleString('en-US')}<span class="text-base text-muted font-sans font-normal">/мес</span>`;
+        });
+      }
+    });
+  </script>
+</body>
+</html>
