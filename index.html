@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
   <title>Wavemetrics — Предиктивная аналитика для артистов</title>
   <meta name="description" content="Wavemetrics агрегирует данные Spotify, Apple Music и YouTube. Предсказывает виральность трека на 30 дней до того, как кривая роста стала очевидной.">
 
@@ -71,10 +72,18 @@
       line-height: 1.65;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      overflow-x: clip;
     }
 
     @media (max-width: 768px) {
       body { font-size: 16px; }
+    }
+    @media (max-width: 420px) {
+      .max-w-wrap { padding-left: 1rem !important; padding-right: 1rem !important; }
+      header .btn { padding: 10px 12px; font-size: 12px; }
+      header .ml-2 { display: none; }
+      h1 { font-size: clamp(2.7rem, 12.5vw, 3.3rem) !important; overflow-wrap: anywhere; }
+      .u.u4 .btn { white-space: normal; justify-content: center; text-align: center; }
     }
 
     h1, h2, h3, h4 {
@@ -187,8 +196,8 @@
   </header>
 
   <!-- ═══════════ HERO — asymmetric 5/7 ═══════════ -->
-  <section class="border-b border-bd">
-    <div class="max-w-wrap mx-auto px-6 lg:px-12 py-20 lg:py-28">
+  <section class="border-b border-bd min-h-[100svh] lg:min-h-[calc(100dvh-4.5rem)] flex items-center">
+    <div class="max-w-wrap mx-auto w-full px-6 lg:px-12 py-16 lg:py-20">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
         <!-- Left: copy (5/12) -->
